@@ -4,6 +4,9 @@ on:
   issues:
     types: [labeled]
 
+permissions:
+  contents: write
+
 jobs:
   create-pr:
     if: github.event.label.name == 'collection-request'
