@@ -38,6 +38,17 @@ jobs:
 
           echo "slug=$SLUG" >> $GITHUB_OUTPUT
 
+      - name: Check if branch already exists
+        id: branch_check
+        run: |
+          BRANCH="collection/${{ steps.parse.outputs.slug }}"
+          echo "Checking if branch $BRANCH already exists..."
+
+          if git ls-remote --exit-code --heads origin "$BRANCH"; then
+            echo "Branch $BRANCH already exists. Exiting."
+            exit 0
+          fi
+
       - name: Create branch and folder
         run: |
           BRANCH="collection/${{ steps.parse.outputs.slug }}"
