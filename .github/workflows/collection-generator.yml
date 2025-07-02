@@ -2,11 +2,11 @@ name: Generate Collection Config
 
 on:
   issues:
-    types: [opened]
+    types: [labeled]
 
 jobs:
   create-pr:
-    if: contains(github.event.issue.labels.*.name, 'collection-request')
+    if: github.event.label.name == 'collection-request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -19,7 +19,10 @@ jobs:
       - name: Parse slug from issue body
         id: parse
         run: |
-          echo "::set-output name=slug::$(echo "${{ github.event.issue.body }}" | grep -i 'slug' | cut -d':' -f2 | tr -d '[:space:]')"
+          echo "Extracting slug..."
+          SLUG=$(echo "${{ github.event.issue.body }}" | grep -i 'slug' | head -n1 | cut -d':' -f2 | tr -d '[:space:]')
+          echo "Slug = $SLUG"
+          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
 
       - name: Create branch and folder
         run: |
