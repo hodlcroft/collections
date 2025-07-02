@@ -1,0 +1,32 @@
+version = "1"
+
+slug = "project_slug"
+title = "Project Title"
+description = """
+Give an overview of your title here...
+"""
+
+[[source]]
+type = "cardano"
+policy_id = "<policy id>"
+
+[[link]]
+type = "discord"
+invite_code = ""
+
+[[link]]
+type = "x"
+account = ""
+
+[[link]]
+type = "website"
+url = ""
+
+[[team]]
+name = "Your Nick"
+roles = ["Founder"]
+discord_id = "discord_id"
+
+[[team.link]]
+type = "x"
+account = "your_twitter_handle"

@@ -1,0 +1,34 @@
+name: Validate and Merge
+
+on:
+  pull_request:
+    types: [ready_for_review]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Call Hodlcroft validator
+        id: validate
+        run: |
+          curl -X POST https://hodlcroft.net/api/validate-collection \
+            -H "Content-Type: application/json" \
+            -d '{"pr": "${{ github.event.pull_request.number }}"}' \
+            -o result.json
+
+      - name: Check result
+        run: |
+          jq '.valid == true' result.json || exit 1
+
+      - name: Merge if valid
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              merge_method: 'squash'
+            })

@@ -1,0 +1,18 @@
+name: Request a New Collection
+description: Begin the process to add a new collection config
+title: "[Collection]: "
+labels: ["collection-request"]
+body:
+  - type: input
+    id: slug
+    attributes:
+      label: Collection Slug
+      description: Lowercase, no spaces (used in path)
+      placeholder: my-awesome-collection
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes or Extra Info
+      description: Anything helpful before the files are generated?
