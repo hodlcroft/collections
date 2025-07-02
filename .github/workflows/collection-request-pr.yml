@@ -1,4 +1,3 @@
-# .github/workflows/create-collection-pr.yml
 name: Create Collection PR
 
 on:
@@ -12,12 +11,12 @@ permissions:
   pull-requests: write
 
 jobs:
-  create:
+  create-pr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - name: Download slug
+      - name: Download slug artifact
         uses: actions/download-artifact@v4
         with:
           name: slug
@@ -25,22 +24,23 @@ jobs:
       - name: Read slug
         id: slug
         run: |
-          SLUG=$(cat .collection-slug.txt | xargs)
+          SLUG=$(cat slug.txt | xargs)
           echo "slug=$SLUG" >> $GITHUB_OUTPUT
 
-      - name: Check for existing branch
+      - name: Check if branch already exists
         run: |
-          if git ls-remote --exit-code --heads origin "collection/${{ steps.slug.outputs.slug }}"; then
-            echo "Branch already exists. Exiting."
+          BRANCH="collection/${{ steps.slug.outputs.slug }}"
+          if git ls-remote --exit-code --heads origin "$BRANCH"; then
+            echo "Branch $BRANCH already exists. Exiting."
             exit 0
           fi
 
-      - name: Prepare files
+      - name: Prepare collection files
         run: |
           mkdir -p collections/${{ steps.slug.outputs.slug }}
           cp template/collection/*.toml collections/${{ steps.slug.outputs.slug }}/
 
-      - name: Open PR
+      - name: Bootstrap config and open PR
         uses: peter-evans/create-pull-request@v5
         with:
           title: "New Collection: ${{ steps.slug.outputs.slug }}"
