@@ -19,14 +19,20 @@ jobs:
       - name: Parse slug from issue body
         id: parse
         run: |
-          echo "Raw body:"
+          echo "Raw issue body:"
           echo "${{ github.event.issue.body }}"
 
-          SLUG=$(echo "${{ github.event.issue.body }}" | awk '/### Collection Slug/{getline; print}' | tr -d '\r')
-          SLUG=$(echo "$SLUG" | xargs)  # trim whitespace
+          SLUG=$(echo "${{ github.event.issue.body }}" | awk '
+            BEGIN { found=0 }
+            /^\s*### Collection Slug/ { found=1; next }
+            /^\s*### / { found=0 }  # stop if another section starts
+            found && NF { print; exit }
+          ' | xargs)
+
+          echo "Parsed slug: '$SLUG'"
 
           if [[ -z "$SLUG" ]]; then
-            echo "Slug not found in issue body. Failing."
+            echo "❌ Slug not found or empty. Failing."
             exit 1
           fi
 
