@@ -1,0 +1,52 @@
+# .github/workflows/create-collection-pr.yml
+name: Create Collection PR
+
+on:
+  workflow_run:
+    workflows: ["Trigger PR Creation"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download slug
+        uses: actions/download-artifact@v4
+        with:
+          name: slug
+
+      - name: Read slug
+        id: slug
+        run: |
+          SLUG=$(cat .collection-slug.txt | xargs)
+          echo "slug=$SLUG" >> $GITHUB_OUTPUT
+
+      - name: Check for existing branch
+        run: |
+          if git ls-remote --exit-code --heads origin "collection/${{ steps.slug.outputs.slug }}"; then
+            echo "Branch already exists. Exiting."
+            exit 0
+          fi
+
+      - name: Prepare files
+        run: |
+          mkdir -p collections/${{ steps.slug.outputs.slug }}
+          cp template/collection/*.toml collections/${{ steps.slug.outputs.slug }}/
+
+      - name: Open PR
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: "New Collection: ${{ steps.slug.outputs.slug }}"
+          branch: "collection/${{ steps.slug.outputs.slug }}"
+          base: main
+          draft: true
+          commit-message: "Bootstrap collection ${{ steps.slug.outputs.slug }}"
+          add-paths: |
+            collections/${{ steps.slug.outputs.slug }}/*

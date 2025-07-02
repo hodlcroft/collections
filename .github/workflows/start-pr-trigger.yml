@@ -1,0 +1,32 @@
+# .github/workflows/start-pr-trigger.yml
+name: Trigger PR Creation
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  dispatch:
+    if: github.event.label.name == 'collection-request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Parse slug and write to file
+        run: |
+          SLUG=$(echo "${{ github.event.issue.body }}" | awk '
+            BEGIN { found=0 }
+            /^\s*### Collection Slug/ { found=1; next }
+            /^\s*### / { found=0 }
+            found && NF { print; exit }
+          ' | xargs)
+
+          echo "$SLUG" > .collection-slug.txt
+          echo "::set-output name=slug::$SLUG"
+
+      - name: Upload slug artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slug
+          path: .collection-slug.txt
