@@ -67,4 +67,5 @@ jobs:
         with:
           title: "New Collection: ${{ steps.parse.outputs.slug }}"
           branch: "collection/${{ steps.parse.outputs.slug }}"
+          base: "main"
           draft: true
