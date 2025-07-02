@@ -34,15 +34,21 @@ jobs:
             exit 0
           fi
 
-      - name: Create and push branch
+      - name: Create and push branch with bot credentials
+        env:
+          BOT_PAT: ${{ secrets.BOT_PAT }}
+          REPO: ${{ github.repository }}
         run: |
           BRANCH="collection/${{ steps.parse.outputs.slug }}"
           mkdir -p collections/${{ steps.parse.outputs.slug }}
           cp template/collection/*.toml collections/${{ steps.parse.outputs.slug }}/
 
-          git config user.name "gh-actions"
-          git config user.email "actions@github.com"
+          git config user.name "hodlcroft-bot"
+          git config user.email "bot@hodlcroft.com"
+
           git checkout -b "$BRANCH"
           git add .
           git commit -m "Initialize collection '${{ steps.parse.outputs.slug }}'"
-          git push origin "$BRANCH"
+
+          # Use PAT to authenticate the push
+          git push https://x-access-token:$BOT_PAT@github.com/$REPO.git "$BRANCH"
