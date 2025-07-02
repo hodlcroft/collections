@@ -58,14 +58,15 @@ jobs:
           git checkout -b "$BRANCH"
           mkdir -p collections/${{ steps.parse.outputs.slug }}
           cp template/collection/*.toml collections/${{ steps.parse.outputs.slug }}/
-          git add .
-          git commit -m "Bootstrap collection ${{ steps.parse.outputs.slug }}"
-          git push origin "$BRANCH"
 
-      - name: Create draft PR
+      - name: Bootstrap config and open PR
         uses: peter-evans/create-pull-request@v5
         with:
           title: "New Collection: ${{ steps.parse.outputs.slug }}"
           branch: "collection/${{ steps.parse.outputs.slug }}"
           base: "main"
           draft: true
+          commit-message: "Bootstrap collection ${{ steps.parse.outputs.slug }}"
+          add-paths: |
+            collections/${{ steps.parse.outputs.slug }}/*
+          token: ${{ secrets.GITHUB_TOKEN }}
