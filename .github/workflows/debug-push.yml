@@ -1,0 +1,13 @@
+name: Debug push
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "PUSH EVENT RECEIVED: $GITHUB_REF"
