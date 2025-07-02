@@ -19,10 +19,18 @@ jobs:
       - name: Parse slug from issue body
         id: parse
         run: |
-          echo "Extracting slug..."
-          SLUG=$(echo "${{ github.event.issue.body }}" | grep -i 'slug' | head -n1 | cut -d':' -f2 | tr -d '[:space:]')
-          echo "Slug = $SLUG"
-          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+          echo "Raw body:"
+          echo "${{ github.event.issue.body }}"
+
+          SLUG=$(echo "${{ github.event.issue.body }}" | awk '/### Collection Slug/{getline; print}' | tr -d '\r')
+          SLUG=$(echo "$SLUG" | xargs)  # trim whitespace
+
+          if [[ -z "$SLUG" ]]; then
+            echo "Slug not found in issue body. Failing."
+            exit 1
+          fi
+
+          echo "slug=$SLUG" >> $GITHUB_OUTPUT
 
       - name: Create branch and folder
         run: |
