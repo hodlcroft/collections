@@ -1,10 +1,9 @@
 name: Create Collection PR
 
 on:
-  workflow_run:
-    workflows: ["Trigger PR Creation"]
-    types:
-      - completed
+  push:
+    branches:
+      - "collection/**"
 
 permissions:
   contents: write
@@ -14,39 +13,20 @@ jobs:
   create-pr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Download slug artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: slug
-
-      - name: Read slug
-        id: slug
+      - name: Extract slug from branch
+        id: extract
         run: |
-          SLUG=$(cat slug.txt | xargs)
+          BRANCH="${GITHUB_REF##refs/heads/}"
+          SLUG="${BRANCH#collection/}"
           echo "slug=$SLUG" >> $GITHUB_OUTPUT
 
-      - name: Check if branch already exists
-        run: |
-          BRANCH="collection/${{ steps.slug.outputs.slug }}"
-          if git ls-remote --exit-code --heads origin "$BRANCH"; then
-            echo "Branch $BRANCH already exists. Exiting."
-            exit 0
-          fi
-
-      - name: Prepare collection files
-        run: |
-          mkdir -p collections/${{ steps.slug.outputs.slug }}
-          cp template/collection/*.toml collections/${{ steps.slug.outputs.slug }}/
-
-      - name: Bootstrap config and open PR
+      - name: Open PR
         uses: peter-evans/create-pull-request@v5
         with:
-          title: "New Collection: ${{ steps.slug.outputs.slug }}"
-          branch: "collection/${{ steps.slug.outputs.slug }}"
+          title: "New Collection: ${{ steps.extract.outputs.slug }}"
+          branch: ${{ github.ref_name }}
           base: main
           draft: true
-          commit-message: "Bootstrap collection ${{ steps.slug.outputs.slug }}"
+          commit-message: "Bootstrap collection ${{ steps.extract.outputs.slug }}"
           add-paths: |
-            collections/${{ steps.slug.outputs.slug }}/*
+            collections/${{ steps.extract.outputs.slug }}/*

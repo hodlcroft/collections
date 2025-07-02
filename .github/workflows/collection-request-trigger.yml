@@ -1,21 +1,21 @@
-name: Trigger PR Creation
+name: Generate Collection Config
 
 on:
   issues:
     types: [labeled]
 
 permissions:
-  contents: read # we don’t need write access here
+  contents: write
 
 jobs:
-  dispatch:
+  create-branch:
     if: github.event.label.name == 'collection-request'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Parse slug and write to file
+      - name: Parse slug from issue body
+        id: parse
         run: |
           SLUG=$(echo "${{ github.event.issue.body }}" | awk '
             BEGIN { found=0 }
@@ -24,11 +24,25 @@ jobs:
             found && NF { print; exit }
           ' | xargs)
 
-          echo "Parsed slug: $SLUG"
-          echo "$SLUG" > slug.txt
+          echo "slug=$SLUG" >> $GITHUB_OUTPUT
 
-      - name: Upload slug artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: slug
-          path: slug.txt
+      - name: Check if branch already exists
+        run: |
+          BRANCH="collection/${{ steps.parse.outputs.slug }}"
+          if git ls-remote --exit-code --heads origin "$BRANCH"; then
+            echo "Branch already exists. Exiting."
+            exit 0
+          fi
+
+      - name: Create and push branch
+        run: |
+          BRANCH="collection/${{ steps.parse.outputs.slug }}"
+          mkdir -p collections/${{ steps.parse.outputs.slug }}
+          cp template/collection/*.toml collections/${{ steps.parse.outputs.slug }}/
+
+          git config user.name "gh-actions"
+          git config user.email "actions@github.com"
+          git checkout -b "$BRANCH"
+          git add .
+          git commit -m "Initialize collection '${{ steps.parse.outputs.slug }}'"
+          git push origin "$BRANCH"
