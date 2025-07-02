@@ -1,32 +1,23 @@
 version = "1"
 
-slug = "project_slug"
-title = "Project Title"
+slug = "ug"
+title = "Ug!"
 description = """
-Give an overview of your title here...
+Feel the Ug! A 10k collection of unique, hand-drawn, exclusive NFTs, drawn by Squashua - with Collector Appreciation rewards, and a range of perks!
 """
 
 [[source]]
 type = "cardano"
-policy_id = "<policy id>"
+policy_id = "8972aab912aed2cf44b65916e206324c6bdcb6fbd3dc4eb634fdbd28"
 
 [[link]]
 type = "discord"
-invite_code = ""
+invite_code = "Xm2BEsvu9W"
 
 [[link]]
 type = "x"
-account = ""
+account = "ugvsdonut"
 
 [[link]]
 type = "website"
-url = ""
-
-[[team]]
-name = "Your Nick"
-roles = ["Founder"]
-discord_id = "discord_id"
-
-[[team.link]]
-type = "x"
-account = "your_twitter_handle"
+url = "https://www.squashua.io/"
