@@ -1,0 +1,29 @@
+name: Build Curator
+description: Cache and build the Curator CLI tool if needed
+
+outputs:
+  curator-path:
+    description: "Path to the built curator binary"
+    value: tools/curator/target/release/curator
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache Rust build
+      uses: actions/cache@v4
+      with:
+        path: tools/curator/target
+        key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
+        restore-keys: |
+          rust-validate-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
+
+    - name: Build curator (only if needed)
+      shell: bash
+      working-directory: tools/curator
+      run: |
+        if [ -f target/release/curator ]; then
+          echo "✅ Curator already built from cache"
+        else
+          echo "🔨 Building curator..."
+          cargo build --release
+        fi

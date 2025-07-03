@@ -1,0 +1,35 @@
+policy_id = "b3dab69f7e6100849434fb1781e34bd12a916557f6231b8d2629b6f6"
+schema_version = "1"
+
+slug = "blackflag"
+title = "Black Flag"
+description = """
+A digital brand and web3 identity, true to the nature of digital collectibles, community, and lore. Collectors collect, and pirates loot.
+Claim your identity today; join the crew.
+"""
+
+[[link]]
+type = "discord"
+invite_code = "9KYhndrEbv"
+
+[[link]]
+type = "x"
+account = "BlackFlag_NFT"
+
+[[link]]
+type = "website"
+url = "https://www.blackflagnft.pro/"
+
+[[team]]
+name = "Keeper"
+roles = ["Captain"]
+discord_id = "97691416624365568"
+
+[[team.link]]
+type = "x"
+account = "bfkeeper"
+
+[[team]]
+name = "Spanners"
+roles = ["Captain", "Coder"]
+discord_id = "179744071361757184"

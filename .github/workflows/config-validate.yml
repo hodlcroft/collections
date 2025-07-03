@@ -1,0 +1,35 @@
+name: Validate TOML Files
+
+on:
+  pull_request:
+    paths:
+      - "**/*.toml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build curator
+        id: build_curator
+        uses: ./.github/actions/build-curator
+
+      - name: Get changed TOML files via GitHub API
+        id: get_files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=$(jq .pull_request.number "$GITHUB_EVENT_PATH")
+          FILES=$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path' \
+            | grep '\.toml$' \
+            | grep -v 'Cargo\.toml$' || true)
+          echo "files=${FILES//$'\n'/,}" >> "$GITHUB_OUTPUT"
+
+      - name: Run curator validation
+        if: steps.get_files.outputs.files != ''
+        run: |
+          IFS=',' read -ra FILES <<< "${{ steps.get_files.outputs.files }}"
+          ${{ steps.build_curator.outputs.curator-path }} validate "${FILES[@]}"
