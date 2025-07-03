@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use reqwest::blocking::Client;
+use reqwest::Method;
 use route_recognizer::Router;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -88,12 +89,13 @@ fn get_endpoints(action: &Action, target: &RouteTarget) -> HashMap<&'static str,
 
 fn post_file(
     client: &Client,
+    method: reqwest::Method,
     endpoint: &str,
     content: Vec<u8>,
     content_type: &str,
 ) -> Result<(), String> {
     let res = client
-        .post(endpoint)
+        .request(method, endpoint)
         .header("Content-Type", content_type)
         .body(content)
         .send()
@@ -109,7 +111,13 @@ fn post_file(
 
 fn handle_validate(client: &Client, file: &str, endpoint: &str) -> Result<(), String> {
     let content = fs::read_to_string(file).map_err(|e| format!("read error: {e}"))?;
-    post_file(client, endpoint, content.into_bytes(), "text/plain")
+    post_file(
+        client,
+        Method::POST,
+        endpoint,
+        content.into_bytes(),
+        "text/plain",
+    )
 }
 
 fn handle_update(
@@ -123,6 +131,7 @@ fn handle_update(
     let config = fs::read_to_string(file).map_err(|e| format!("read error: {e}"))?;
     post_file(
         client,
+        Method::PUT,
         &endpoints["config"],
         config.into_bytes(),
         "text/plain",
@@ -133,16 +142,28 @@ fn handle_update(
     let thumb_path = base.join("thumbnail.png");
     if thumb_path.exists() {
         let bytes = fs::read(&thumb_path).map_err(|e| format!("thumbnail read error: {e}"))?;
-        post_file(client, &endpoints["thumbnail"], bytes, "image/png")
-            .map_err(|e| format!("thumbnail upload failed: {e}"))?;
+        post_file(
+            client,
+            Method::PUT,
+            &endpoints["thumbnail"],
+            bytes,
+            "image/png",
+        )
+        .map_err(|e| format!("thumbnail upload failed: {e}"))?;
     }
 
     // Optional banner.jpg
     let banner_path = base.join("banner.jpg");
     if banner_path.exists() {
         let bytes = fs::read(&banner_path).map_err(|e| format!("banner read error: {e}"))?;
-        post_file(client, &endpoints["banner"], bytes, "image/jpeg")
-            .map_err(|e| format!("banner upload failed: {e}"))?;
+        post_file(
+            client,
+            Method::PUT,
+            &endpoints["banner"],
+            bytes,
+            "image/jpeg",
+        )
+        .map_err(|e| format!("banner upload failed: {e}"))?;
     }
 
     Ok(())
