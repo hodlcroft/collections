@@ -52,8 +52,8 @@ fn main() {
     let mut errored = false;
 
     for file in &args {
-        let matched = match match_route(file) {
-            Some(m) => m,
+        let endpoint = match match_route(file) {
+            Some(m) => m.endpoint,
             None => {
                 eprintln!("⚠️  Skipping {}: no route matched", file);
                 continue;
