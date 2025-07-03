@@ -85,7 +85,7 @@ fn main() {
         let endpoint_path = match_route(file).and_then(|target| get_endpoint_path(&action, target));
 
         let endpoint = match endpoint_path {
-            Some(path) => format!("https://curator.hodlcroft.net/{}", path),
+            Some(path) => format!("https://curator.hodlcroft.net{}", path),
             None => {
                 eprintln!("⚠️  Skipping {}: no route matched", file);
                 continue;
@@ -123,7 +123,7 @@ fn main() {
                 }
             }
             Err(_) => {
-                eprintln!("X {} validator request failed", file);
+                eprintln!("X {} validator request failed ({})", file, endpoint);
                 errored = true;
             }
         }
