@@ -17,6 +17,7 @@ struct MatchedRoute {
 
 enum RouteTarget {
     CardanoOverview,
+    Noop,
 }
 
 fn match_route(path: &str) -> Option<MatchedRoute> {
@@ -25,18 +26,19 @@ fn match_route(path: &str) -> Option<MatchedRoute> {
         "collections/cardano/:policy_id/overview.toml",
         RouteTarget::CardanoOverview,
     );
+    router.add("tools/validator/Cargo.toml", RouteTarget::Noop);
 
     let matched = router.recognize(path).ok()?;
     let policy_id = matched.params().find("policy_id")?.to_string();
 
-    let endpoint = match matched.handler() {
-        RouteTarget::CardanoOverview => format!(
+    match matched.handler() {
+        RouteTarget::CardanoOverview => Some(format!(
             "https://curator.hodlcroft.net/validate/cardano/{}",
             policy_id
-        ),
-    };
-
-    Some(MatchedRoute { endpoint })
+        )),
+        _ => None,
+    }
+    .map(|endpoint| MatchedRoute { endpoint })
 }
 
 fn main() {
