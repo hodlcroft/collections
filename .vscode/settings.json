@@ -1,0 +1,5 @@
+{
+  "evenBetterToml.schemaAssociations": {
+    "overview.toml": "https://curator.hodlcroft.net/schemas/overview"
+  }
+}

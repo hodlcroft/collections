@@ -1,0 +1,41 @@
+name: Create Collection PR
+
+on:
+  repository_dispatch:
+    types: [create-collection-pr]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Git
+        run: |
+          git config user.name "hodlcroft-bot"
+          git config user.email "bot@hodlcroft.net"
+
+      - name: Prepare files
+        run: |
+          mkdir -p collections/${{ github.event.client_payload.slug }}
+          cp template/collection/*.toml collections/${{ github.event.client_payload.slug }}/
+
+      - name: Open Draft PR
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: "New Collection: ${{ github.event.client_payload.slug }}"
+          branch: "collection/${{ github.event.client_payload.slug }}"
+          base: main
+          draft: true
+          commit-message: "Initialize collection '${{ github.event.client_payload.slug }}'"
+          body: |
+            Bootstrap configuration for new collection: `${{ github.event.client_payload.slug }}`
+
+            Closes #${{ github.event.client_payload.issue_number }}
+          add-paths: |
+            collections/${{ github.event.client_payload.slug }}/*
+          token: ${{ secrets.BOT_PAT }}

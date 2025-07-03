@@ -1,0 +1,42 @@
+name: Dispatch Collection PR
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    if: github.event.label.name == 'collection-request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract slug and issue number
+        id: extract
+        run: |
+          SLUG=$(echo "${{ github.event.issue.body }}" | awk '
+            BEGIN { found=0 }
+            /^\s*### Collection Slug/ { found=1; next }
+            /^\s*### / { found=0 }
+            found && NF { print; exit }
+          ' | xargs)
+
+          if [[ -z "$SLUG" ]]; then
+            echo "❌ Slug is missing."
+            exit 1
+          fi
+
+          echo "slug=$SLUG" >> $GITHUB_OUTPUT
+          echo "issue_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+
+      - name: Dispatch to collection workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.BOT_PAT }}
+          event-type: create-collection-pr
+          client-payload: |
+            {
+              "slug": "${{ steps.extract.outputs.slug }}",
+              "issue_number": "${{ steps.extract.outputs.issue_number }}"
+            }
