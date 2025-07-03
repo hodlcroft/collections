@@ -16,13 +16,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            tools/validate-toml/target
+            tools/validator/target
           key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/validator/Cargo.lock', 'tools/validator/src/**/*.rs') }}
           restore-keys: |
             rust-validate-${{ runner.os }}-
 
-      - name: Build validate-toml
-        working-directory: tools/validate-toml
+      - name: Build validator
+        working-directory: tools/validator
         run: cargo build --release
 
       - name: Run validation
