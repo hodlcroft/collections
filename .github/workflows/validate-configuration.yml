@@ -20,7 +20,7 @@ jobs:
             tools/validator/target
           key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/validator/Cargo.lock', 'tools/validator/src/**/*.rs') }}
           restore-keys: |
-            rust-validate-${{ runner.os }}-
+            rust-validate-${{ runner.os }}-${{ hashFiles('tools/validator/Cargo.lock', 'tools/validator/src/**/*.rs') }}
 
       - name: Build validator (only if needed)
         working-directory: tools/validator
