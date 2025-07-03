@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
+use reqwest::blocking::Client;
 use route_recognizer::Router;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process;
@@ -16,16 +18,20 @@ struct Cli {
 enum Commands {
     /// Validate one or more TOML files
     Validate {
-        /// Paths to TOML files to validate
         #[arg(required = true)]
         files: Vec<String>,
     },
-    /// Submit updated TOML configs
+    /// Submit updated TOML config and optional images
     Update {
-        /// Paths to TOML files to submit (must be routable)
         #[arg(required = true)]
         files: Vec<String>,
     },
+}
+
+#[derive(Clone)]
+enum Action {
+    Validate,
+    Update,
 }
 
 #[derive(Deserialize)]
@@ -35,12 +41,7 @@ enum ServiceResponse {
     Error { error: String },
 }
 
-#[derive(Clone)]
-enum Action {
-    Validate,
-    Update,
-}
-
+#[derive(Debug)]
 enum RouteTarget {
     CardanoOverview { policy_id: String },
 }
@@ -61,75 +62,90 @@ fn match_route(path: &str) -> Option<RouteTarget> {
     }
 }
 
-fn get_endpoint_path(action: &Action, target: RouteTarget) -> Option<String> {
+fn get_endpoints(action: &Action, target: &RouteTarget) -> HashMap<&'static str, String> {
     match (action, target) {
         (Action::Validate, RouteTarget::CardanoOverview { policy_id }) => {
-            Some(format!("/validate/cardano/{}", policy_id))
+            let mut map = HashMap::new();
+            map.insert(
+                "config",
+                format!(
+                    "https://curator.hodlcroft.net/validate/cardano/{}",
+                    policy_id
+                ),
+            );
+            map
         }
         (Action::Update, RouteTarget::CardanoOverview { policy_id }) => {
-            Some(format!("/update/cardano/{}", policy_id))
+            let base = format!("https://curator.hodlcroft.net/update/cardano/{}", policy_id);
+            let mut map = HashMap::new();
+            map.insert("config", format!("{base}/config"));
+            map.insert("thumbnail", format!("{base}/thumbnail"));
+            map.insert("banner", format!("{base}/banner"));
+            map
         }
     }
 }
 
-fn handle_validate(file: &str, endpoint: &str) -> Result<(), String> {
-    let content = fs::read_to_string(file).map_err(|e| format!("read error: {e}"))?;
-
-    let client = reqwest::blocking::Client::new();
+fn post_file(
+    client: &Client,
+    endpoint: &str,
+    content: Vec<u8>,
+    content_type: &str,
+) -> Result<(), String> {
     let res = client
         .post(endpoint)
-        .header("Content-Type", "text/plain")
+        .header("Content-Type", content_type)
         .body(content)
         .send()
         .map_err(|e| format!("request error: {e}"))?;
 
     let body = res.text().unwrap_or_default();
     match serde_json::from_str::<ServiceResponse>(&body) {
-        Ok(ServiceResponse::Ok) => {
-            println!("✅ {} is valid", file);
-            Ok(())
-        }
-        Ok(ServiceResponse::Error { error }) => Err(format!("❌ {} failed: {error}", file)),
-        Err(_) => Err(format!("❌ {} invalid response", file)),
+        Ok(ServiceResponse::Ok) => Ok(()),
+        Ok(ServiceResponse::Error { error }) => Err(error),
+        Err(_) => Err("invalid server response".into()),
     }
 }
 
-fn handle_update(file: &str, endpoint: &str) -> Result<(), String> {
+fn handle_validate(client: &Client, file: &str, endpoint: &str) -> Result<(), String> {
+    let content = fs::read_to_string(file).map_err(|e| format!("read error: {e}"))?;
+    post_file(client, endpoint, content.into_bytes(), "text/plain")
+}
+
+fn handle_update(
+    client: &Client,
+    file: &str,
+    endpoints: &HashMap<&str, String>,
+) -> Result<(), String> {
+    let base = Path::new(file).parent().unwrap_or_else(|| Path::new("."));
+
+    // Always send config
     let config = fs::read_to_string(file).map_err(|e| format!("read error: {e}"))?;
-    let dir = Path::new(file).parent().unwrap_or_else(|| Path::new("."));
-    let thumb = dir.join("thumbnail.png");
-    let banner = dir.join("banner.jpg");
+    post_file(
+        client,
+        &endpoints["config"],
+        config.into_bytes(),
+        "text/plain",
+    )
+    .map_err(|e| format!("config upload failed: {e}"))?;
 
-    let mut form = reqwest::blocking::multipart::Form::new().text("config", config);
-
-    if thumb.exists() {
-        form = form
-            .file("thumbnail", &thumb)
-            .map_err(|e| format!("thumb error: {e}"))?;
+    // Optional thumbnail.png
+    let thumb_path = base.join("thumbnail.png");
+    if thumb_path.exists() {
+        let bytes = fs::read(&thumb_path).map_err(|e| format!("thumbnail read error: {e}"))?;
+        post_file(client, &endpoints["thumbnail"], bytes, "image/png")
+            .map_err(|e| format!("thumbnail upload failed: {e}"))?;
     }
 
-    if banner.exists() {
-        form = form
-            .file("banner", &banner)
-            .map_err(|e| format!("banner error: {e}"))?;
+    // Optional banner.jpg
+    let banner_path = base.join("banner.jpg");
+    if banner_path.exists() {
+        let bytes = fs::read(&banner_path).map_err(|e| format!("banner read error: {e}"))?;
+        post_file(client, &endpoints["banner"], bytes, "image/jpeg")
+            .map_err(|e| format!("banner upload failed: {e}"))?;
     }
 
-    let client = reqwest::blocking::Client::new();
-    let res = client
-        .put(endpoint)
-        .multipart(form)
-        .send()
-        .map_err(|e| format!("request error: {e}"))?;
-
-    let body = res.text().unwrap_or_default();
-    match serde_json::from_str::<ServiceResponse>(&body) {
-        Ok(ServiceResponse::Ok) => {
-            println!("📦 {} submitted", file);
-            Ok(())
-        }
-        Ok(ServiceResponse::Error { error }) => Err(format!("❌ {} failed: {error}", file)),
-        Err(_) => Err(format!("❌ {} invalid response", file)),
-    }
+    Ok(())
 }
 
 fn main() {
@@ -139,27 +155,35 @@ fn main() {
         Commands::Update { files } => (Action::Update, files),
     };
 
+    let client = Client::new();
     let mut errored = false;
 
     for file in &files {
         let route = match_route(file);
-        let endpoint_path = route.and_then(|r| get_endpoint_path(&action, r));
-        let endpoint = match endpoint_path {
-            Some(p) => format!("https://curator.hodlcroft.net{}", p),
-            None => {
-                eprintln!("⚠️  Skipping {} (no route)", file);
-                continue;
-            }
-        };
+        let endpoints = route
+            .as_ref()
+            .map(|r| get_endpoints(&action, r))
+            .unwrap_or_default();
+
+        if endpoints.is_empty() {
+            eprintln!("⚠️  Skipping {file} (no route matched)");
+            continue;
+        }
 
         let result = match action {
-            Action::Validate => handle_validate(file, &endpoint),
-            Action::Update => handle_update(file, &endpoint),
+            Action::Validate => handle_validate(&client, file, &endpoints["config"]),
+            Action::Update => handle_update(&client, file, &endpoints),
         };
 
-        if let Err(msg) = result {
-            eprintln!("{msg}");
-            errored = true;
+        match result {
+            Ok(()) => match action {
+                Action::Validate => println!("✅ {file} is valid"),
+                Action::Update => println!("📦 {file} submitted"),
+            },
+            Err(msg) => {
+                eprintln!("❌ {file}: {msg}");
+                errored = true;
+            }
         }
     }
 
