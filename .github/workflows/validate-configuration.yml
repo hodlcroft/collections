@@ -38,7 +38,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           PR_NUMBER=$(jq .pull_request.number "$GITHUB_EVENT_PATH")
-          FILES=$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path' | grep '\.toml$' || true)
+          FILES=$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path' \
+            | grep '\.toml$' \
+            | grep -v 'Cargo\.toml$' || true)
           echo "files=${FILES//$'\n'/,}" >> "$GITHUB_OUTPUT"
 
       - name: Run curator validation
