@@ -17,7 +17,7 @@ jobs:
         with:
           path: |
             tools/validate-toml/target
-          key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/validate-toml/Cargo.lock') }}
+          key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/validator/Cargo.lock', 'tools/validator/src/**/*.rs') }}
           restore-keys: |
             rust-validate-${{ runner.os }}-
 
