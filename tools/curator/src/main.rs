@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use route_recognizer::Router;
 use serde::Deserialize;
 use std::fs;
+use std::path::Path;
 use std::process;
 
 #[derive(Parser)]
@@ -21,7 +22,7 @@ enum Commands {
     },
     /// Submit updated TOML configs
     Update {
-        /// Paths to TOML files to submit
+        /// Paths to TOML files to submit (must be routable)
         #[arg(required = true)]
         files: Vec<String>,
     },
@@ -45,7 +46,6 @@ enum RouteTarget {
 }
 
 fn match_route(path: &str) -> Option<RouteTarget> {
-    // Step 1: route pattern → string label
     let mut router = Router::<&str>::new();
     router.add(
         "collections/cardano/:policy_id/overview.toml",
@@ -55,7 +55,6 @@ fn match_route(path: &str) -> Option<RouteTarget> {
     let matched = router.recognize(path).ok()?;
     let policy_id = matched.params().find("policy_id")?.to_string();
 
-    // Step 2: handler label → RouteTarget construction
     match **matched.handler() {
         "cardano_overview" => Some(RouteTarget::CardanoOverview { policy_id }),
         _ => None,
@@ -67,13 +66,74 @@ fn get_endpoint_path(action: &Action, target: RouteTarget) -> Option<String> {
         (Action::Validate, RouteTarget::CardanoOverview { policy_id }) => {
             Some(format!("/validate/cardano/{}", policy_id))
         }
-        _ => None,
+        (Action::Update, RouteTarget::CardanoOverview { policy_id }) => {
+            Some(format!("/update/cardano/{}", policy_id))
+        }
+    }
+}
+
+fn handle_validate(file: &str, endpoint: &str) -> Result<(), String> {
+    let content = fs::read_to_string(file).map_err(|e| format!("read error: {e}"))?;
+
+    let client = reqwest::blocking::Client::new();
+    let res = client
+        .post(endpoint)
+        .header("Content-Type", "text/plain")
+        .body(content)
+        .send()
+        .map_err(|e| format!("request error: {e}"))?;
+
+    let body = res.text().unwrap_or_default();
+    match serde_json::from_str::<ServiceResponse>(&body) {
+        Ok(ServiceResponse::Ok) => {
+            println!("✅ {} is valid", file);
+            Ok(())
+        }
+        Ok(ServiceResponse::Error { error }) => Err(format!("❌ {} failed: {error}", file)),
+        Err(_) => Err(format!("❌ {} invalid response", file)),
+    }
+}
+
+fn handle_update(file: &str, endpoint: &str) -> Result<(), String> {
+    let config = fs::read_to_string(file).map_err(|e| format!("read error: {e}"))?;
+    let dir = Path::new(file).parent().unwrap_or_else(|| Path::new("."));
+    let thumb = dir.join("thumbnail.png");
+    let banner = dir.join("banner.jpg");
+
+    let mut form = reqwest::blocking::multipart::Form::new().text("config", config);
+
+    if thumb.exists() {
+        form = form
+            .file("thumbnail", &thumb)
+            .map_err(|e| format!("thumb error: {e}"))?;
+    }
+
+    if banner.exists() {
+        form = form
+            .file("banner", &banner)
+            .map_err(|e| format!("banner error: {e}"))?;
+    }
+
+    let client = reqwest::blocking::Client::new();
+    let res = client
+        .put(endpoint)
+        .multipart(form)
+        .send()
+        .map_err(|e| format!("request error: {e}"))?;
+
+    let body = res.text().unwrap_or_default();
+    match serde_json::from_str::<ServiceResponse>(&body) {
+        Ok(ServiceResponse::Ok) => {
+            println!("📦 {} submitted", file);
+            Ok(())
+        }
+        Ok(ServiceResponse::Error { error }) => Err(format!("❌ {} failed: {error}", file)),
+        Err(_) => Err(format!("❌ {} invalid response", file)),
     }
 }
 
 fn main() {
     let cli = Cli::parse();
-
     let (action, files) = match cli.command {
         Commands::Validate { files } => (Action::Validate, files),
         Commands::Update { files } => (Action::Update, files),
@@ -82,50 +142,24 @@ fn main() {
     let mut errored = false;
 
     for file in &files {
-        let endpoint_path = match_route(file).and_then(|target| get_endpoint_path(&action, target));
-
+        let route = match_route(file);
+        let endpoint_path = route.and_then(|r| get_endpoint_path(&action, r));
         let endpoint = match endpoint_path {
-            Some(path) => format!("https://curator.hodlcroft.net{}", path),
+            Some(p) => format!("https://curator.hodlcroft.net{}", p),
             None => {
-                eprintln!("⚠️  Skipping {}: no route matched", file);
+                eprintln!("⚠️  Skipping {} (no route)", file);
                 continue;
             }
         };
 
-        let content = match fs::read_to_string(file) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("❌ Failed to read file {}: {}", file, e);
-                errored = true;
-                continue;
-            }
+        let result = match action {
+            Action::Validate => handle_validate(file, &endpoint),
+            Action::Update => handle_update(file, &endpoint),
         };
 
-        let res = ureq::post(&endpoint)
-            .set("Content-Type", "text/plain")
-            .send_string(&content);
-
-        match res {
-            Ok(res) => {
-                let body = res.into_string().unwrap_or_default();
-                match serde_json::from_str(&body) {
-                    Ok(ServiceResponse::Ok) => {
-                        println!("✅ {} succeeded", file);
-                    }
-                    Ok(ServiceResponse::Error { error }) => {
-                        eprintln!("❌ {} failed ({}):", file, error);
-                        errored = true;
-                    }
-                    Err(_) => {
-                        eprintln!("X {} invalid JSON from server", file);
-                        errored = true;
-                    }
-                }
-            }
-            Err(_) => {
-                eprintln!("X {} validator request failed ({})", file, endpoint);
-                errored = true;
-            }
+        if let Err(msg) = result {
+            eprintln!("{msg}");
+            errored = true;
         }
     }
 
