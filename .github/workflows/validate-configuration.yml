@@ -13,24 +13,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Rust build
-        uses: actions/cache@v4
-        with:
-          path: |
-            tools/curator/target
-          key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
-          restore-keys: |
-            rust-validate-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
-
-      - name: Build curator (only if needed)
-        working-directory: tools/curator
-        run: |
-          if [ -f target/release/validatocurator ]; then
-            echo "✅ Curator already built from cache"
-          else
-            echo "🔨 Building curator..."
-            cargo build --release
-          fi
+      - name: Build curator
+        id: build_curator
+        uses: ./.github/actions/build-curator
 
       - name: Get changed TOML files via GitHub API
         id: get_files
@@ -47,4 +32,4 @@ jobs:
         if: steps.get_files.outputs.files != ''
         run: |
           IFS=',' read -ra FILES <<< "${{ steps.get_files.outputs.files }}"
-          ./tools/curator/target/release/curator validate "${FILES[@]}"
+          ${{ steps.build_curator.outputs.curator-path }} validate "${FILES[@]}"
