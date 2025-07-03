@@ -17,18 +17,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            tools/validator/target
-          key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/validator/Cargo.lock', 'tools/validator/src/**/*.rs') }}
+            tools/curator/target
+          key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
           restore-keys: |
-            rust-validate-${{ runner.os }}-${{ hashFiles('tools/validator/Cargo.lock', 'tools/validator/src/**/*.rs') }}
+            rust-validate-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
 
-      - name: Build validator (only if needed)
-        working-directory: tools/validator
+      - name: Build curator (only if needed)
+        working-directory: tools/curator
         run: |
-          if [ -f target/release/validator ]; then
-            echo "✅ Validator already built from cache"
+          if [ -f target/release/validatocurator ]; then
+            echo "✅ Curator already built from cache"
           else
-            echo "🔨 Building validator..."
+            echo "🔨 Building curator..."
             cargo build --release
           fi
 
@@ -41,8 +41,8 @@ jobs:
           FILES=$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path' | grep '\.toml$' || true)
           echo "files=${FILES//$'\n'/,}" >> "$GITHUB_OUTPUT"
 
-      - name: Run validator
+      - name: Run curator validation
         if: steps.get_files.outputs.files != ''
         run: |
           IFS=',' read -ra FILES <<< "${{ steps.get_files.outputs.files }}"
-          ./tools/validator/target/release/validator "${FILES[@]}"
+          ./tools/curator/target/release/curator validate "${FILES[@]}"
