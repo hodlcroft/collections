@@ -15,9 +15,9 @@ jobs:
         with:
           fetch-depth: 2 # Ensures we have access to previous commit for diff
 
-      - name: Install curator
-        run: |
-          cargo install --path ./crates/curator  # Adjust path to match your project
+      - name: Build curator
+        id: build_curator
+        uses: ./.github/actions/build-curator
 
       - name: Determine changed TOML files
         id: changed
@@ -38,5 +38,5 @@ jobs:
         run: |
           echo "${{ steps.changed.outputs.files }}" | while read file; do
             echo "Submitting $file..."
-            curator update "$file"
+            ${{ steps.build_curator.outputs.curator-path }} update "$file"
           done
