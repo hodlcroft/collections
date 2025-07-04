@@ -9,15 +9,12 @@ Claim your identity today; join the crew.
 """
 
 [[link]]
-type = "discord"
-invite_code = "9KYhndrEbv"
+url = "https://discord.gg/9KYhndrEbv"
 
 [[link]]
-type = "x"
-account = "BlackFlag_NFT"
+url = "https://x.com/BlackFlag_NFT"
 
 [[link]]
-type = "website"
 url = "https://www.blackflagnft.pro/"
 
 [[team]]
@@ -26,8 +23,7 @@ roles = ["Captain"]
 discord_id = "97691416624365568"
 
 [[team.link]]
-type = "x"
-account = "bfkeeper"
+url = "https://x.com/bfkeeper"
 
 [[team]]
 name = "Spanners"
