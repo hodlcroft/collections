@@ -139,7 +139,7 @@ fn handle_update(
     .map_err(|e| format!("config upload failed: {e}"))?;
 
     // Optional thumbnail.png
-    let thumb_path = base.join("thumbnail.png");
+    let thumb_path = base.join("thumbnail.webp");
     if thumb_path.exists() {
         let bytes = fs::read(&thumb_path).map_err(|e| format!("thumbnail read error: {e}"))?;
         post_file(
@@ -147,7 +147,7 @@ fn handle_update(
             Method::PUT,
             &endpoints["thumbnail"],
             bytes,
-            "image/png",
+            "image/webp",
         )
         .map_err(|e| format!("thumbnail upload failed: {e}"))?;
     }

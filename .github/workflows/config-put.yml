@@ -13,30 +13,62 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2 # Ensures we have access to previous commit for diff
+          fetch-depth: 2 # Ensure we can diff against previous commit
 
       - name: Build curator
         id: build_curator
         uses: ./.github/actions/build-curator
 
-      - name: Determine changed TOML files
+      - name: Determine changed TOML and thumbnail files
         id: changed
         run: |
-          FILES=$(git diff --name-only HEAD^ HEAD \
+          TOML_FILES=$(git diff --name-only HEAD^ HEAD \
             | grep '\.toml$' \
             | grep -v 'Cargo\.toml$' || true)
 
-          echo "Changed TOML files:"
-          echo "$FILES"
+          WEBP_FILES=$(git diff --name-only HEAD^ HEAD \
+            | grep 'thumbnail\.webp$' || true)
 
-          echo "files<<EOF" >> $GITHUB_OUTPUT
-          echo "$FILES" >> $GITHUB_OUTPUT
+          echo "Changed TOML files:"
+          echo "$TOML_FILES"
+
+          echo "Changed thumbnail.webp files:"
+          echo "$WEBP_FILES"
+
+          echo "toml_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$TOML_FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Submit updated TOML configs
-        if: steps.changed.outputs.files != ''
+          echo "webp_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$WEBP_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Submit updated TOML configs and thumbnails
+        if: steps.changed.outputs.toml_files != '' || steps.changed.outputs.webp_files != ''
         run: |
-          echo "${{ steps.changed.outputs.files }}" | while read file; do
+          touched_files=()
+
+          # Add all changed TOML files directly
+          echo "${{ steps.changed.outputs.toml_files }}" | while read file; do
+            [ -f "$file" ] && touched_files+=("$file")
+          done
+
+          # For each changed .webp, find its sibling overview.toml
+          echo "${{ steps.changed.outputs.webp_files }}" | while read file; do
+            dir=$(dirname "$file")
+            toml="$dir/overview.toml"
+            if [ -f "$toml" ]; then
+              touched_files+=("$toml")
+            else
+              echo "⚠️ Warning: No overview.toml found for $file"
+            fi
+          done
+
+          # Deduplicate
+          unique_files=($(printf "%s\n" "${touched_files[@]}" | sort -u))
+
+          # Submit all
+          for file in "${unique_files[@]}"; do
             echo "Submitting $file..."
             ${{ steps.build_curator.outputs.curator-path }} update "$file"
           done
