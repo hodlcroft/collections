@@ -1,4 +1,4 @@
-name: Optimnise project thumbnail
+name: Optimise project thumbnail
 
 on:
   pull_request:
@@ -6,26 +6,36 @@ on:
       - "**/thumbnail.png"
 
 jobs:
-  validate:
+  optimise-thumbnail:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
-      - name: Checkout
+      - name: Checkout PR branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Build thumbnailer
         id: build_tool
         uses: ./.github/actions/build-thumbnailer
 
-      - name: Get changed PNG files via GitHub API
+      - name: Detect changed thumbnail PNGs
         id: get_files
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           PR_NUMBER=$(jq .pull_request.number "$GITHUB_EVENT_PATH")
           FILES=$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path' \
-            | grep '\.png$' || true)
+            | grep 'thumbnail.png$' || true)
           echo "files=${FILES//$'\n'/,}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if PR is from a fork
+        id: fork_check
+        run: |
+          echo "is_fork=${{ github.event.pull_request.head.repo.full_name != github.repository }}" >> $GITHUB_OUTPUT
 
       - name: Run thumbnailer
         if: steps.get_files.outputs.files != ''
@@ -33,19 +43,33 @@ jobs:
           IFS=',' read -ra FILES <<< "${{ steps.get_files.outputs.files }}"
           ${{ steps.build_tool.outputs.tool-path }} --input "${FILES[@]}"
 
-      - name: Delete original .png files
-        if: steps.get_files.outputs.files != ''
-        run: |
-          IFS=',' read -ra FILES <<< "${{ steps.get_files.outputs.files }}"
-          for file in "${FILES[@]}"; do
-            rm "$file"
-          done
+      - name: Upload webp as artifact (for forked PRs)
+        if: steps.get_files.outputs.files != '' && steps.fork_check.outputs.is_fork == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimized-thumbnail
+          path: |
+            collections/**/thumbnail.webp
+          retention-days: 3
 
-      - name: Commit and push optimized thumbnails
-        if: steps.get_files.outputs.files != ''
+      - name: Comment with artifact download link
+        if: steps.get_files.outputs.files != '' && steps.fork_check.outputs.is_fork == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
+        run: |
+          gh auth login --with-token <<< "$GH_TOKEN"
+          gh pr comment ${{ github.event.pull_request.number }} --body \
+          "⚠️ This PR comes from a fork, so we couldn't commit the optimized \`thumbnail.webp\`.
+          🔧 We’ve attached the optimized file as a [downloadable artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts).
+          ➡️ Please download it, replace \`thumbnail.png\` with the optimized \`thumbnail.webp\`, and update your PR.
+          "
+
+      - name: Delete original PNGs and commit optimized webp (same-repo only)
+        if: steps.get_files.outputs.files != '' && steps.fork_check.outputs.is_fork == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.BOT_PAT }}
           BRANCH: ${{ github.head_ref }}
+          REPO: ${{ github.repository }}
         run: |
           git config user.name "hodlcroft-bot"
           git config user.email "bot@hodlcroft.net"
@@ -60,10 +84,3 @@ jobs:
           git commit -m "chore: optimized project thumbnails to .webp"
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git
           git push origin HEAD:$BRANCH
-
-      - name: Comment on PR
-        if: steps.get_files.outputs.files != ''
-        run: |
-          gh auth login --with-token <<< "${{ secrets.BOT_PAT }}"
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "✅ Your thumbnail.png was converted to thumbnail.webp for optimization. We've committed the fix to your PR branch."
