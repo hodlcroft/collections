@@ -140,9 +140,8 @@ fn handle_update(
 
     // Optional thumbnail.png
     let thumb_path = base.join("thumbnail.webp");
-    println!("checking for thumbnail @ {}", thumb_path.to_str().unwrap());
     if thumb_path.exists() {
-        println!("thumbnail found");
+        println!("uploading thumbnail @ {}", thumb_path.to_str().unwrap());
         let bytes = fs::read(&thumb_path).map_err(|e| format!("thumbnail read error: {e}"))?;
         post_file(
             client,
@@ -157,6 +156,7 @@ fn handle_update(
     // Optional banner.jpg
     let banner_path = base.join("banner.jpg");
     if banner_path.exists() {
+        println!("uploading banner @ {}", banner_path.to_str().unwrap());
         let bytes = fs::read(&banner_path).map_err(|e| format!("banner read error: {e}"))?;
         post_file(
             client,
