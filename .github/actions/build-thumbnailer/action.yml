@@ -1,0 +1,29 @@
+name: Build Thumbnailer
+description: Cache and build the Thumbnailer CLI tool if needed
+
+outputs:
+  tool-path:
+    description: "Path to the built thumbnailer binary"
+    value: tools/thumbnailer/target/release/thumbnailer
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache Rust build
+      uses: actions/cache@v4
+      with:
+        path: tools/thumbnailer/target
+        key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/thumbnailer/Cargo.lock', 'tools/thumbnailer/src/**/*.rs') }}
+        restore-keys: |
+          rust-validate-${{ runner.os }}-${{ hashFiles('tools/thumbnailer/Cargo.lock', 'tools/thumbnailer/src/**/*.rs') }}
+
+    - name: Build thumbnailer (only if needed)
+      shell: bash
+      working-directory: tools/thumbnailer
+      run: |
+        if [ -f target/release/thumbnailer ]; then
+          echo "✅ Thumbnailer already built from cache"
+        else
+          echo "🔨 Building thumbnailer..."
+          cargo build --release
+        fi

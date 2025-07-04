@@ -1,0 +1,34 @@
+name: Optimnise project thumbnail
+
+on:
+  pull_request:
+    paths:
+      - "**/thumbnail.png"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build thumbnailer
+        id: build_tool
+        uses: ./.github/actions/build-thumbnailer
+
+      - name: Get changed TOML files via GitHub API
+        id: get_files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=$(jq .pull_request.number "$GITHUB_EVENT_PATH")
+          FILES=$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path' \
+            | grep '\.png$' \
+          echo "files=${FILES//$'\n'/,}" >> "$GITHUB_OUTPUT"
+
+      - name: Run thumbnailer
+        if: steps.get_files.outputs.files != ''
+        run: |
+          IFS=',' read -ra FILES <<< "${{ steps.get_files.outputs.files }}"
+          ${{ steps.build_tool.outputs.tool-path }} --input "${FILES[@]}"
