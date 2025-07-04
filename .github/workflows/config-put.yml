@@ -48,13 +48,15 @@ jobs:
         run: |
           touched_files=()
 
-          # Add all changed TOML files directly
-          echo "${{ steps.changed.outputs.toml_files }}" | while read file; do
+          # Split and iterate over TOML files
+          IFS=$'\n' read -d '' -r -a toml_lines <<< "${{ steps.changed.outputs.toml_files }}"
+          for file in "${toml_lines[@]}"; do
             [ -f "$file" ] && touched_files+=("$file")
           done
 
-          # For each changed .webp, find its sibling overview.toml
-          echo "${{ steps.changed.outputs.webp_files }}" | while read file; do
+          # Split and iterate over WEBP files
+          IFS=$'\n' read -d '' -r -a webp_lines <<< "${{ steps.changed.outputs.webp_files }}"
+          for file in "${webp_lines[@]}"; do
             dir=$(dirname "$file")
             toml="$dir/overview.toml"
             if [ -f "$toml" ]; then
