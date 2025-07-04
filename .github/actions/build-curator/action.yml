@@ -13,9 +13,9 @@ runs:
       uses: actions/cache@v4
       with:
         path: tools/curator/target
-        key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
+        key: rust-tool-curator-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
         restore-keys: |
-          rust-validate-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
+          rust-tool-curator-${{ runner.os }}-${{ hashFiles('tools/curator/Cargo.lock', 'tools/curator/src/**/*.rs') }}
 
     - name: Build curator (only if needed)
       shell: bash

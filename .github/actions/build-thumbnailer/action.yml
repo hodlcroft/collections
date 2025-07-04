@@ -13,9 +13,9 @@ runs:
       uses: actions/cache@v4
       with:
         path: tools/thumbnailer/target
-        key: rust-validate-${{ runner.os }}-${{ hashFiles('tools/thumbnailer/Cargo.lock', 'tools/thumbnailer/src/**/*.rs') }}
+        key: rust-tool-thumbnailer-${{ runner.os }}-${{ hashFiles('tools/thumbnailer/Cargo.lock', 'tools/thumbnailer/src/**/*.rs') }}
         restore-keys: |
-          rust-validate-${{ runner.os }}-${{ hashFiles('tools/thumbnailer/Cargo.lock', 'tools/thumbnailer/src/**/*.rs') }}
+          rust-tool-thumbnailer-${{ runner.os }}-${{ hashFiles('tools/thumbnailer/Cargo.lock', 'tools/thumbnailer/src/**/*.rs') }}
 
     - name: Build thumbnailer (only if needed)
       shell: bash
