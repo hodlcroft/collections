@@ -58,6 +58,7 @@ jobs:
           done
 
           git commit -m "chore: optimized project thumbnails to .webp"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git
           git push origin HEAD:$BRANCH
 
       - name: Comment on PR
