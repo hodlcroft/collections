@@ -24,7 +24,7 @@ jobs:
         run: |
           PR_NUMBER=$(jq .pull_request.number "$GITHUB_EVENT_PATH")
           FILES=$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path' \
-            | grep '\.png$'
+            | grep '\.png$' || true)
           echo "files=${FILES//$'\n'/,}" >> "$GITHUB_OUTPUT"
 
       - name: Run thumbnailer
