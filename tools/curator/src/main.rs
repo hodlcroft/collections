@@ -140,7 +140,9 @@ fn handle_update(
 
     // Optional thumbnail.png
     let thumb_path = base.join("thumbnail.webp");
+    println!("checking for thumbnail @ {}", thumb_path.to_str().unwrap());
     if thumb_path.exists() {
+        println!("thumbnail found");
         let bytes = fs::read(&thumb_path).map_err(|e| format!("thumbnail read error: {e}"))?;
         post_file(
             client,
